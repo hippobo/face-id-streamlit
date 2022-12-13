@@ -6,6 +6,7 @@ from kivy.uix.image import Image
 from kivy.uix.button import Button
 from kivy.uix.label import Label
 from kivy.uix.textinput import TextInput
+
 import glob
 import torchvision.transforms as transforms
 from functools import reduce
@@ -16,6 +17,8 @@ from kivy.clock import Clock
 from kivy.graphics.texture import Texture
 from kivy.logger import Logger
 from kivy.uix.textinput import TextInput
+from kivy.core.window import Window
+import shutil
 
 # Import other dependencies
 import cv2
@@ -25,7 +28,8 @@ import os
 import numpy as np
 import time
 DEVICE = 'cuda'
-
+MODELPATH = "trained_model2.pth"
+MODEL2 = "trained_model2.pth"
 class SiameseNet(nn.Module):
     def __init__(self):
         super(SiameseNet,self).__init__()
@@ -71,16 +75,18 @@ class SiameseNet(nn.Module):
         output = self.fc1(output)
         return output
 
+
 class CamApp(App):
 
     def build(self):
+        
         # Main layout components 
         self.web_cam = Image(size_hint=(1,1))
         self.verifButton = Button(text="Verify", on_press=self.verify,
          size_hint=(1,.1))
-        self.verification_label = Label(text="Verification Uninitiated", size_hint=(1,.1))
+        self.verification_label = Label(text="Verification Uninitiated", size_hint=(1,.1), color = (1,0,0,1))
         self.userID_label = Label(text = "User ID : ", size_hint=(1,.1))
-        
+        Window.size = (800, 800)
         
 
         
@@ -104,12 +110,12 @@ class CamApp(App):
 
 
         
-        self.model = torch.load("trained_model.pth", map_location=torch.device('cpu'))
+        self.model = torch.load(MODELPATH, map_location=torch.device('cpu'))
 
 
         # # Setup video capture device
         self.capture = cv2.VideoCapture(0)
-        Clock.schedule_interval(self.update, 1.0/33.0)
+        Clock.schedule_interval(self.update, 1.0/60.0)
         
         return layout
 
@@ -121,7 +127,7 @@ class CamApp(App):
 
         # Read frame from opencv
         ret, frame = self.capture.read()
-        frame = frame[120:120+250, 200:200+250, :]
+        #frame = frame[120:120+250, 200:200+250, :]
 
         # Flip horizontall and convert image to texture
         buf = cv2.flip(frame, 0).tostring()
@@ -166,13 +172,13 @@ class CamApp(App):
 
     
         if userID != None:
-            print("User Images Done for : " + userID)
+            self.verification_label.text = "User %s Created" % userID
+            self.verification_label.color = (0,1,0,1)
         
             
 
 
-
-    def create_verif_embedding(self, userCreation,userID = None,modelPath="trained_model.pth"):
+    def create_verif_embedding(self, userCreation,userID = None,modelPath=MODELPATH):
         
         images_list = []
         if userCreation:
@@ -231,6 +237,17 @@ class CamApp(App):
 
             for f in Verif_Images:
                 os.remove(f)
+        else:
+            try:
+                path_list = os.listdir("/home/hippolyte/Desktop/AICG/FACEIDAPI/app_data/user_images/")
+                
+                for user_folder in path_list:
+                    user_folder = "/home/hippolyte/Desktop/AICG/FACEIDAPI/app_data/user_images/" + user_folder
+                    shutil.rmtree(user_folder)
+                
+            except OSError as e:
+                print("Error: %s - %s." % (e.filename, e.strerror))
+           
             
             
             
@@ -239,7 +256,7 @@ class CamApp(App):
         return meanEmbedding
 
 
-    def user_creation(self, userID, modelPath="trained_model.pth"):
+    def user_creation(self, userID, modelPath=MODELPATH):
             userID = self.username.text
             pathOut = "/home/hippolyte/Desktop/AICG/FACEIDAPI/user_embeddings/"
         
@@ -256,6 +273,7 @@ class CamApp(App):
         verif_embedding = self.create_verif_embedding(userCreation = False)
         if verif_embedding == None:
                 self.verification_label.text = 'Cannot find your face in the frame'
+                self.verification_label.color = (1,0,0,1)
 
         else: # Build results array
             results = []
@@ -269,22 +287,33 @@ class CamApp(App):
         
         
         # Detection Threshold: Metric above which a prediciton is considered positive 
-            if min(results) < 0.6:
+            if min(results) < 0.55:
                 detection = results.index(min(results))
                 verified = True
             else: 
-                detection = 404
+                detection = None
+                verif_username = "Not Found"
                 verified = False
-
-        
+            
+            usernames = []
+            if verified:
+                for user in glob.iglob("/home/hippolyte/Desktop/AICG/FACEIDAPI/user_embeddings" + "/*"):
+                    username = user.split("/")[-1].split(".")[0].split("embedding")[-1]
+                    usernames.append(username)
+                verif_username = usernames[detection]
         # Verification Threshold: Proportion of positive predictions / total positive samples 
 
         # Set verification text 
-            self.verification_label.text = 'Verified: Access granted' if verified == True else 'Unverified, access denied'
-            self.userID_label.text = 'User ID: ' + str(detection)
+            if verified:
+                self.verification_label.text = 'Verified: Access granted'
+                self.verification_label.color = (0,1,0,1)
+            else: 
+                self.verification_label.text = 'Unverified, access denied'
+                self.verification_label.color = (1,0,0,1)
+            self.userID_label.text = 'User ID: ' + str(verif_username)
 
         # Log out details
-            Logger.info(results)
+            Logger.info(min(results))
             Logger.info(detection)
             Logger.info(verified)
 

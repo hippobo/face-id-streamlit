@@ -82,7 +82,7 @@ class CamApp(App):
         
         # Main layout components 
         self.web_cam = Image(size_hint=(1,1))
-        self.verifButton = Button(text="Verify", on_press=self.verify,
+        self.verifButton = Button(text="Verification Mode", on_press=self.verify,
          size_hint=(1,.1))
         self.verification_label = Label(text="Verification Uninitiated", size_hint=(1,.1), color = (1,0,0,1))
         self.userID_label = Label(text = "User ID : ", size_hint=(1,.1))
@@ -110,7 +110,7 @@ class CamApp(App):
 
 
         
-        self.model = torch.load(MODELPATH, map_location=torch.device('cpu'))
+        self.model = torch.load(MODELPATH, map_location=torch.device(DEVICE))
 
 
         # # Setup video capture device
@@ -136,80 +136,79 @@ class CamApp(App):
         self.web_cam.texture = img_texture
 
     # Load image from file and conver to 100x100px
-    def preprocess(self, userCreation,userID = None):
-        vidcap = self.capture
-        face_cascade = cv2.CascadeClassifier(cv2.data.haarcascades + 'haarcascade_frontalface_default.xml')
-        count = 0
-        if userCreation:
-            path = "/home/hippolyte/Desktop/AICG/FACEIDAPI/app_data/user_images" + "/" + userID
-            nbOfPictures = 10
-        else:
-            path = "/home/hippolyte/Desktop/AICG/FACEIDAPI/app_data/verif_images"
-            nbOfPictures = 1 
-            
-            
-        
-        if not os.path.exists(path):
-            os.makedirs(path)
-
-        
-        while (vidcap.isOpened()):
-            
-            ret, frame = vidcap.read()
-            frameRate = vidcap.get(5)
-            if(ret and count < nbOfPictures):
-                gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-                face = face_cascade.detectMultiScale(gray,scaleFactor = 1.05, minNeighbors = 7, minSize = (100,100), flags = cv2.CASCADE_SCALE_IMAGE)
-                for (x, y, w, h) in face:
-                    face = frame[y:y + h, x:x + w]
-                    filename = path + "/frame%d.jpg" % count
-                    cv2.imwrite( filename , face)    
-                count = count + 1
-                time.sleep((int(frameRate)//int(frameRate)) * 1.5)
-            else: 
-                break
-
-
+    def preprocess(self, frame):
     
-        if userID != None:
-            self.verification_label.text = "User %s Created" % userID
-            self.verification_label.color = (0,1,0,1)
+        face_cascade = cv2.CascadeClassifier(cv2.data.haarcascades + 'haarcascade_frontalface_default.xml')
+
+
+        gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+        face = face_cascade.detectMultiScale(gray,scaleFactor = 1.05, minNeighbors = 7, minSize = (100,100), flags = cv2.CASCADE_SCALE_IMAGE)
+        for (x, y, w, h) in face:
+            face = frame[y:y + h, x:x + w]
+            cv2.rectangle(frame, (x, y), (x + w, y + h), (0, 255, 0), 2)
+            embedding = self.create_verif_embedding(False,userID = None,frame = face)
+
+            return embedding
         
-            
+        
 
-
-    def create_verif_embedding(self, userCreation,userID = None,modelPath=MODELPATH):
+    def create_verif_embedding(self, userCreation,userID = None,frame = None,modelPath=MODELPATH):
         
         images_list = []
         if userCreation:
+            
             FolderPath = "/home/hippolyte/Desktop/AICG/FACEIDAPI/app_data/user_images/" + userID
-        else: 
-            FolderPath = "/home/hippolyte/Desktop/AICG/FACEIDAPI/app_data/verif_images"
-            if len(os.listdir("/home/hippolyte/Desktop/AICG/FACEIDAPI/app_data/verif_images")) == 0:
-                
-                return None
-        for picture in glob.iglob(f'{FolderPath}/*'):
+            for picture in glob.iglob(f'{FolderPath}/*'):
                 images_list.append(picture)
 
-        
+            key = FolderPath
 
-        
-        key = FolderPath
+            userDict  = {key:images_list}
+            embeddingList = []
+            
+            model = SiameseNet().to(DEVICE)
+            model.load_state_dict(torch.load(modelPath))
+            model.eval()
+            
+            with torch.no_grad():
+                for _, images in userDict.items():
+                    
+                    for image in images:
+                            
+                        userImage = PIL.Image.open(image)
+                        transform1 = transforms.Resize(size=(128,128))
+                        transform2 = transforms.ToTensor()
+                        transform3 = transforms.Lambda(lambda x: x[:3])
 
-        userDict  = {key:images_list}
-        embeddingList = []
-        
-        model = SiameseNet().to(DEVICE)
-        model.load_state_dict(torch.load(modelPath))
-        model.eval()
-        
-        with torch.no_grad():
-            for _, images in userDict.items():
-                
-                for image in images:
+                        userImage = transform1(userImage)
+                        userImage = transform2(userImage)
+                        userImage = transform3(userImage)
                         
-                    userImage = PIL.Image.open(image)
-                    transform1 = transforms.Resize(size=(128,128))
+                        
+                        userImage = userImage.unsqueeze(dim=0)
+                        userImage = userImage.to(DEVICE)
+                        embedding = model(userImage)
+                        
+
+                        embeddingList.append(embedding)
+
+        
+        
+
+        else:
+            embeddingList = []
+
+    
+            model = SiameseNet().to(DEVICE)
+            model.load_state_dict(torch.load(modelPath))
+            model.eval()
+            
+            with torch.no_grad():
+                
+                
+                    userImage =cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+                    userImage = PIL.Image.fromarray(userImage)
+                    transform1 = transforms.Resize(size=(128,128)) 
                     transform2 = transforms.ToTensor()
                     transform3 = transforms.Lambda(lambda x: x[:3])
 
@@ -225,19 +224,12 @@ class CamApp(App):
 
                     embeddingList.append(embedding)
                 
-            
-            meanEmbedding = reduce(torch.Tensor.add_,embeddingList,torch.zeros_like(embeddingList[0]))
-            torch.div(meanEmbedding,len(embeddingList))
-            meanEmbedding = F.normalize(meanEmbedding, p=2, dim=1)
+        meanEmbedding = reduce(torch.Tensor.add_,embeddingList,torch.zeros_like(embeddingList[0]))
+        torch.div(meanEmbedding,len(embeddingList))
+        meanEmbedding = F.normalize(meanEmbedding, p=2, dim=1)
         
 
-
-        if not userCreation:
-            Verif_Images = glob.glob("/home/hippolyte/Desktop/AICG/FACEIDAPI/app_data/verif_images" + "/*")
-
-            for f in Verif_Images:
-                os.remove(f)
-        else:
+        if userCreation:
             try:
                 path_list = os.listdir("/home/hippolyte/Desktop/AICG/FACEIDAPI/app_data/user_images/")
                 
@@ -258,19 +250,52 @@ class CamApp(App):
 
     def user_creation(self, userID, modelPath=MODELPATH):
             userID = self.username.text
-            pathOut = "/home/hippolyte/Desktop/AICG/FACEIDAPI/user_embeddings/"
+            vidcap = self.capture
+            face_cascade = cv2.CascadeClassifier(cv2.data.haarcascades + 'haarcascade_frontalface_default.xml')
+            count = 0
         
-            self.preprocess(userCreation=True,userID=userID)
+            path = "/home/hippolyte/Desktop/AICG/FACEIDAPI/app_data/user_images" + "/" + userID
+            nbOfPictures = 10
+          
+                
+            if not os.path.exists(path):
+                os.makedirs(path)
+
+            
+            while (vidcap.isOpened()):
+                
+                ret, frame = vidcap.read()
+                frameRate = vidcap.get(5)
+                if(ret and count < nbOfPictures):
+                    gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+                    face = face_cascade.detectMultiScale(gray,scaleFactor = 1.05, minNeighbors = 7, minSize = (100,100), flags = cv2.CASCADE_SCALE_IMAGE)
+                    for (x, y, w, h) in face:
+                        face = frame[y:y + h, x:x + w]
+                        filename = path + "/frame%d.jpg" % count
+                        cv2.imwrite( filename , face)    
+                    count = count + 1
+                    time.sleep((int(frameRate)//int(frameRate)) * 1.5)
+                else: 
+                    break
+
+
+        
+            if userID != None:
+                self.verification_label.text = "User %s Created" % userID
+                self.verification_label.color = (0,1,0,1)
+        
+            
             user_mean_embedding = self.create_verif_embedding(True,userID,modelPath)
-            torch.save(user_mean_embedding, pathOut + "embedding" + userID + ".pt")
+            torch.save(user_mean_embedding, "/home/hippolyte/Desktop/AICG/FACEIDAPI/user_embeddings/" + "embedding" + userID + ".pt")
 
 
     # Verification function to verify person
     def verify(self, *args):
         # Specify thresholds
         
-        self.preprocess(userCreation=False)
-        verif_embedding = self.create_verif_embedding(userCreation = False)
+        ret, frame = self.capture.read()
+        verif_embedding = self.preprocess(frame)
+       
         if verif_embedding == None:
                 self.verification_label.text = 'Cannot find your face in the frame'
                 self.verification_label.color = (1,0,0,1)

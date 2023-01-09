@@ -142,7 +142,7 @@ def verify(embedding, frame):
 
     # Load embeddings from file
         results = []
-        for user in glob.iglob("/home/hippolyte/Desktop/AICG/FACEIDAPI/user_embeddings" + "/*"):
+        for user in glob.iglob("user_embeddings" + "/*"):
             user_embedding = torch.load(user)
             #userID = user.split("/")[-1].split(".")[0].split("embedding")[-1]
             result = F.pairwise_distance(embedding, user_embedding,p=2)
@@ -163,7 +163,7 @@ def verify(embedding, frame):
         
         usernames = []
         if verified:
-            for user in glob.iglob("/home/hippolyte/Desktop/AICG/FACEIDAPI/user_embeddings" + "/*"):
+            for user in glob.iglob("user_embeddings" + "/*"):
                 username = user.split("/")[-1].split(".")[0].split("embedding")[-1]
                 usernames.append(username)
             verif_username = usernames[detection]

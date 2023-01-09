@@ -254,7 +254,7 @@ class CamApp(App):
             face_cascade = cv2.CascadeClassifier(cv2.data.haarcascades + 'haarcascade_frontalface_default.xml')
             count = 0
         
-            path = "/home/hippolyte/Desktop/AICG/FACEIDAPI/app_data/user_images" + "/" + userID
+            path = "app_data/user_images" + "/" + userID
             nbOfPictures = 10
           
                 
@@ -286,7 +286,7 @@ class CamApp(App):
         
             
             user_mean_embedding = self.create_verif_embedding(True,userID,modelPath)
-            torch.save(user_mean_embedding, "/home/hippolyte/Desktop/AICG/FACEIDAPI/user_embeddings/" + "embedding" + userID + ".pt")
+            torch.save(user_mean_embedding, "user_embeddings/" + "embedding" + userID + ".pt")
 
 
     # Verification function to verify person
@@ -302,7 +302,7 @@ class CamApp(App):
 
         else: # Build results array
             results = []
-            for user in glob.iglob("/home/hippolyte/Desktop/AICG/FACEIDAPI/user_embeddings" + "/*"):
+            for user in glob.iglob("user_embeddings" + "/*"):
                 user_embedding = torch.load(user)
                 #userID = user.split("/")[-1].split(".")[0].split("embedding")[-1]
                 result = F.pairwise_distance(verif_embedding, user_embedding,p=2)
@@ -322,7 +322,7 @@ class CamApp(App):
             
             usernames = []
             if verified:
-                for user in glob.iglob("/home/hippolyte/Desktop/AICG/FACEIDAPI/user_embeddings" + "/*"):
+                for user in glob.iglob("user_embeddings" + "/*"):
                     username = user.split("/")[-1].split(".")[0].split("embedding")[-1]
                     usernames.append(username)
                 verif_username = usernames[detection]

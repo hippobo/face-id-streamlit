@@ -28,7 +28,7 @@ import os
 import numpy as np
 import time
 DEVICE = 'cuda'
-MODELPATH = "trained_model2.pth"
+MODELPATH = "trained_model.pth"
 MODEL2 = "trained_model2.pth"
 class SiameseNet(nn.Module):
     def __init__(self):

@@ -23,7 +23,6 @@ import shutil
 # Import other dependencies
 import cv2
 import torch
-import tensorflow as tf
 import os
 import numpy as np
 import time
@@ -157,7 +156,7 @@ class CamApp(App):
         images_list = []
         if userCreation:
             
-            FolderPath = "/home/hippolyte/Desktop/AICG/FACEIDAPI/app_data/user_images/" + userID
+            FolderPath = "app_data/user_images/" + userID
             for picture in glob.iglob(f'{FolderPath}/*'):
                 images_list.append(picture)
 
@@ -231,10 +230,10 @@ class CamApp(App):
 
         if userCreation:
             try:
-                path_list = os.listdir("/home/hippolyte/Desktop/AICG/FACEIDAPI/app_data/user_images/")
+                path_list = os.listdir("app_data/user_images/")
                 
                 for user_folder in path_list:
-                    user_folder = "/home/hippolyte/Desktop/AICG/FACEIDAPI/app_data/user_images/" + user_folder
+                    user_folder = "app_data/user_images/" + user_folder
                     shutil.rmtree(user_folder)
                 
             except OSError as e:
@@ -255,7 +254,7 @@ class CamApp(App):
             count = 0
         
             path = "app_data/user_images" + "/" + userID
-            nbOfPictures = 10
+            nbOfPictures = 2
           
                 
             if not os.path.exists(path):

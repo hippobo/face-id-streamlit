@@ -65,13 +65,6 @@ class SiameseNet(nn.Module):
         output = self.fc1(output)
         return output
 
-
-        
-
-
-
-    
-
 # Load image from file and conver to 100x100px
 def preprocess(frame):
     face_cascade = cv2.CascadeClassifier(cv2.data.haarcascades + 'haarcascade_frontalface_default.xml')

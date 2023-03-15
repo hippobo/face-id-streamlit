@@ -12,18 +12,12 @@ from re import M
 from torch.optim.lr_scheduler import StepLR
 import cv2
 import os
-import math
-import onnx
-import torch
-import torch.quantization as quant
-import torch.nn.functional as F
-import torch.nn.utils.prune as prune
-import torch.onnx as tonnx
 
-from onnxsim import simplify
-from onnx_tf.backend import prepare as tf_prepare
-from tensorflowjs.converters.tf_saved_model_conversion_v2 import convert_tf_saved_model
-from time import monotonic
+import torch
+
+import torch.nn.functional as F
+
+
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -31,7 +25,6 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import torchvision
-import torchvision.datasets as datasets
 import torchvision.transforms as transforms
 import torchvision.utils
 from PIL import Image

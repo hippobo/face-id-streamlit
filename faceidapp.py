@@ -24,7 +24,6 @@ import shutil
 import cv2
 import torch
 import os
-import numpy as np
 import time
 DEVICE = 'cuda'
 MODELPATH = "trained_model.pth"

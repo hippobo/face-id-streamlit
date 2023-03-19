@@ -8,6 +8,7 @@ COPY ./requirements.txt /app/requirements.txt
 
 COPY . /app
 
+COPY mongo-init.js /docker-entrypoint-initdb.d/
 
 RUN pip install --no-cache-dir -r requirements.txt
 

@@ -1,3 +1,5 @@
+from database_connection import DB_Requests
+
 import streamlit as st 
 import PIL.Image
 
@@ -14,6 +16,8 @@ import os
 import shutil
 import time
 import numpy as np
+
+import pymongo
 
 if torch.cuda.is_available():
     DEVICE = 'cuda'
@@ -254,6 +258,9 @@ def verify(embedding):
     # Verification Threshold: Proportion of positive predictions / total positive samples 
 
         return verified, verif_username
+
+
+
 
 
 

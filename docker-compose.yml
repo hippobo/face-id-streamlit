@@ -1,32 +1,32 @@
 
 
-version: '3.3'
+version: '2'
 
 services:
 
   mongodb:
     image : mongo:latest
-    container_name: mongodb_faceid
+    container_name: mongodb
     ports:
       - 27017:27017 
     # command: mongod --auth
-    # environment:
-    #   MONGO_INITDB_ROOT_USERNAME: 'admin'
-    #   MONGO_INITDB_ROOT_PASSWORD: 'root'
-    #   MONGO_INITDB_DATABASE: my_db
+    #environment:
+      # MONGO_INITDB_ROOT_USERNAME: 'admin'
+      # MONGO_INITDB_ROOT_PASSWORD: 'root'
+      # MONGO_INITDB_DATABASE: my_db
 
       # MONGO_USER: user
       # MONGO_PASSWORD : userpasswd
       # MONGO_DB : foo
     volumes:
       - ./MongoDB_FaceApp/mongodb/database:/data/db
-      - ./mongo-init.js:/docker-entrypoint-initdb.d/mongo-init.js
+      #- ./mongo-init.js:/docker-entrypoint-initdb.d/mongo-init.js
     
     restart: unless-stopped
 
   faceid:
     build: .
-    container_name: faceidapp
+    container_name: faceid
     ports: 
       - 8501:8501
     

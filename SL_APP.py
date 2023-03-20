@@ -1,8 +1,7 @@
-from database_connection import DB_Requests
-
 import streamlit as st 
 import PIL.Image
 
+from bson.binary import Binary
 
 import glob
 import torchvision.transforms as transforms
@@ -10,6 +9,7 @@ from functools import reduce
 import torch.nn.functional as F
 import torch.nn as nn
 
+import pickle
 import cv2
 import torch
 import os
@@ -17,7 +17,7 @@ import shutil
 import time
 import numpy as np
 
-import pymongo
+from pymongo import MongoClient, errors
 
 if torch.cuda.is_available():
     DEVICE = 'cuda'
@@ -224,58 +224,129 @@ def user_creation(userID,frame, count):
             
            
             
-def verify(embedding):
+def verify_no_username(embedding, collection, threshold_value):
     # Specify thresholds
 
 
     # Load embeddings from file
-        results = []
-        for user in glob.iglob("user_embeddings" + "/*"):
-            user_embedding = torch.load(user)
-            #userID = user.split("/")[-1].split(".")[0].split("embedding")[-1]
+        results = {}
+        for users in collection.find():
+            user_name = users['user_name']
+            user = users['user_embedding']
+            user_embedding = pickle.loads(user)
+
             result = F.pairwise_distance(embedding, user_embedding,p=2)
-            results.append(result[0].item())
+            results[user_name] = result
             
         
     
     
     # Detection Threshold: Metric above which a prediciton is considered positive 
-        result = min(results, default=0)
-        if (result < 0.55) & (result != 0.0):
-            detection = results.index(min(results))
+        result = min(results.values())
+        
+        if (result < threshold_value) & (result != 0.0):
+            verif_username = min(results, key = results.get)
             verified = True
         else: 
-            detection = None
+            
             verif_username = "Not Found"
             verified = False
         
-        usernames = []
-        if verified:
-            for user in glob.iglob("user_embeddings" + "/*"):
-                username = user.split("/")[-1].split(".")[0].split("embedding")[-1]
-                usernames.append(username)
-            verif_username = usernames[detection]
-    # Verification Threshold: Proportion of positive predictions / total positive samples 
-
         return verified, verif_username
 
 
+def verify_with_username(embedding, user_name, collection, threshold_value):
+    # Specify thresholds
+
+
+    # Load embeddings from file
+        user = get_user_embedding(collection, user_name)
+        if user != None:
+            user_embedding = pickle.loads(user)
+
+            result = F.pairwise_distance(embedding, user_embedding,p=2)
+
+            if (result < threshold_value) & (result != 0.0):
+                verified = True
+                verif_username = user_name
+
+            else : 
+                verif_username = "No Match"
+                verified = False
+           
+        
+        else: 
+                verif_username = "UserName Not Found"
+                verified = False
+
+        return verified, verif_username
+
+        
+
+def get_collection(db, collection_name):
+    '''This method is to get a collection from the database.'''
+    a = db[collection_name]
+    return a
+
+
+def get_user_embedding(collection_name, user_name):
+    a = collection_name.find_one({"user_name": user_name})
+    if a != None:
+
+        return a["user_embedding"]
+    else:
+        return None
+
+def get_all_user_embeddings(collection_name):
+    '''This method is to get all the documents from the database.'''
+    userlist = []
+    for users in collection_name.find():
+        userlist.append(users)
+        
+
+def delete_user(collection_name, user_name):
+    '''This method is to delete a document from the database.'''
+    collection_name.delete_one({"user_name": user_name})
 
 
 
+def insert_user(collection_name, user_name, user_embedding):
+    '''This method is to insert a document into the database.'''
+    collection_name.insert_one({"user_name": user_name, "user_embedding": user_embedding})
+
+
+myclient = MongoClient("mongodb://mongodb:27017/")
+
+mydb = myclient["face_id_app"]
+
+dblist = myclient.list_database_names()
+if "face_id_app" in dblist:
+  print("The database exists.")
+
+mycol = mydb["users"]
+
+collist = mydb.list_collection_names()
+if "users" in collist:
+  print("The collection exists.")
 
 st.title('FACE RECOGNITION APP')
 
 user_name = st.text_input(':sunglasses:', "Enter your name")
 
-img_file_buffer = st.camera_input("Take a picture to acess app", key="camera")
+img_file_buffer = st.camera_input("Take a picture to access app", key="camera")
 
-start_face_recognition = st.checkbox("Access the app")
+start_face_recognition_no_username = st.checkbox("Access the app without username")
+
+start_face_recognition_with_username = st.checkbox("Access the app with username")
 
 create_user_button = st.checkbox("Create user")
 
+threshold_value = st.slider('Select threshold value (1 is further away, 0 is closer): ', 0.0, 1.0, 0.55)
 
-if img_file_buffer is not None and start_face_recognition and not create_user_button:
+
+
+
+if img_file_buffer is not None and (start_face_recognition_with_username or start_face_recognition_no_username) and not create_user_button :
  
     bytes_data = img_file_buffer.getvalue()
     cv2_img = cv2.imdecode(np.frombuffer(bytes_data, np.uint8), cv2.IMREAD_COLOR)
@@ -287,9 +358,18 @@ if img_file_buffer is not None and start_face_recognition and not create_user_bu
     embedding = preprocess(cv2_img)
     
 
-    if type(embedding) != type(None):
+    if type(embedding) != type(None) and start_face_recognition_with_username and not start_face_recognition_no_username:
         st.write("Starting recognition...")
-        verified, verif_username = verify(embedding)
+        verified, verif_username = verify_with_username(embedding, user_name, mycol, threshold_value)
+
+        if verified:
+            st.success("Welcome %s" % verif_username)
+        else:
+            st.error("Access not granted")
+
+    elif type(embedding) != type(None) and start_face_recognition_no_username and not start_face_recognition_with_username and img_file_buffer is not None:
+        st.write("Starting recognition...")
+        verified, verif_username = verify_no_username(embedding, mycol, threshold_value)
 
         if verified:
             st.success("Welcome %s" % verif_username)
@@ -300,7 +380,7 @@ if img_file_buffer is not None and start_face_recognition and not create_user_bu
         
         
 
-elif create_user_button and not start_face_recognition:
+elif create_user_button and not start_face_recognition_no_username:
    
     count = 0
     nb_of_pictures = 10
@@ -316,7 +396,10 @@ elif create_user_button and not start_face_recognition:
             
             
             count += 1
-        
+    
     user_mean_embedding = create_verif_embedding(True,user_name,modelPath=MODELPATH)
-    torch.save(user_mean_embedding, "user_embeddings/" + "embedding" + user_name + ".pt")
+    user_embedding = (pickle.dumps(user_mean_embedding))
+    insert_user(mycol, user_name, user_embedding)
+    
+   
     st.success("User " + user_name+ " created")

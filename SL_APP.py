@@ -297,11 +297,13 @@ def get_user_embedding(collection_name, user_name):
     else:
         return None
 
-def get_all_user_embeddings(collection_name):
+def get_all_usernames(collection_name):
     '''This method is to get all the documents from the database.'''
     userlist = []
     for users in collection_name.find():
-        userlist.append(users)
+        userlist.append(users['user_name'])
+
+    return userlist
         
 
 def delete_user(collection_name, user_name):
@@ -329,77 +331,106 @@ collist = mydb.list_collection_names()
 if "users" in collist:
   print("The collection exists.")
 
-st.title('FACE RECOGNITION APP')
+tabFace, tabDatabase = st.tabs(["Face Recognition", "Database"])
 
-user_name = st.text_input(':sunglasses:', "Enter your name")
+with tabFace:
 
-img_file_buffer = st.camera_input("Take a picture to access app", key="camera")
+    st.title('FACE RECOGNITION')
 
-start_face_recognition_no_username = st.checkbox("Access the app without username")
+    user_name = st.text_input(':sunglasses:', "Enter your name")
 
-start_face_recognition_with_username = st.checkbox("Access the app with username")
+    img_file_buffer = st.camera_input("Take a picture to access app", key="camera")
 
-create_user_button = st.checkbox("Create user")
+    start_face_recognition_no_username = st.checkbox("Access the app without username")
 
-threshold_value = st.slider('Select threshold value (1 is further away, 0 is closer): ', 0.0, 1.0, 0.55)
+    start_face_recognition_with_username = st.checkbox("Access the app with username")
 
+    create_user_button = st.checkbox("Create user")
 
-
-
-if img_file_buffer is not None and (start_face_recognition_with_username or start_face_recognition_no_username) and not create_user_button :
- 
-    bytes_data = img_file_buffer.getvalue()
-    cv2_img = cv2.imdecode(np.frombuffer(bytes_data, np.uint8), cv2.IMREAD_COLOR)
+    threshold_value = st.slider('Select threshold value (1 is less strict, 0 is more strict): ', 0.0, 1.0, 0.55)
 
 
 
-    st.write("Looking for your face...")
+
+    if img_file_buffer is not None and (start_face_recognition_with_username or start_face_recognition_no_username) and not create_user_button :
     
-    embedding = preprocess(cv2_img)
-    
+        bytes_data = img_file_buffer.getvalue()
+        cv2_img = cv2.imdecode(np.frombuffer(bytes_data, np.uint8), cv2.IMREAD_COLOR)
 
-    if type(embedding) != type(None) and start_face_recognition_with_username and not start_face_recognition_no_username:
-        st.write("Starting recognition...")
-        verified, verif_username = verify_with_username(embedding, user_name, mycol, threshold_value)
 
-        if verified:
-            st.success("Welcome %s" % verif_username)
-        else:
-            st.error("Access not granted")
 
-    elif type(embedding) != type(None) and start_face_recognition_no_username and not start_face_recognition_with_username and img_file_buffer is not None:
-        st.write("Starting recognition...")
-        verified, verif_username = verify_no_username(embedding, mycol, threshold_value)
-
-        if verified:
-            st.success("Welcome %s" % verif_username)
-        else:
-            st.error("Access not granted")
-    else:
-         st.error("Face not found")
+        st.write("Looking for your face...")
         
+        embedding = preprocess(cv2_img)
         
 
-elif create_user_button and not start_face_recognition_no_username:
-   
-    count = 0
-    nb_of_pictures = 10
-    while count < nb_of_pictures:
-        if img_file_buffer is not None:
-            st.write("Taking pictures, turn your head slowly...")
-            
-            bytes_data = img_file_buffer.getvalue()
-            cv2_img = cv2.imdecode(np.frombuffer(bytes_data, np.uint8), cv2.IMREAD_COLOR)
+        if type(embedding) != type(None) and start_face_recognition_with_username and not start_face_recognition_no_username:
+            st.write("Starting recognition...")
+            verified, verif_username = verify_with_username(embedding, user_name, mycol, threshold_value)
 
-          
-            user_creation(user_name, cv2_img, count)
+            if verified:
+                st.success("Welcome %s" % verif_username)
+            else:
+                st.error("Access not granted")
+
+        elif type(embedding) != type(None) and start_face_recognition_no_username and not start_face_recognition_with_username and img_file_buffer is not None:
+            st.write("Starting recognition...")
+            verified, verif_username = verify_no_username(embedding, mycol, threshold_value)
+
+            if verified:
+                st.success("Welcome %s" % verif_username)
+            else:
+                st.error("Access not granted")
+        else:
+            st.error("Face not found")
             
             
-            count += 1
+
+    elif create_user_button and not start_face_recognition_no_username:
     
-    user_mean_embedding = create_verif_embedding(True,user_name,modelPath=MODELPATH)
-    user_embedding = (pickle.dumps(user_mean_embedding))
-    insert_user(mycol, user_name, user_embedding)
+        count = 0
+        nb_of_pictures = 10
+        while count < nb_of_pictures:
+            if img_file_buffer is not None:
+                st.write("Taking pictures, turn your head slowly...")
+                
+                bytes_data = img_file_buffer.getvalue()
+                cv2_img = cv2.imdecode(np.frombuffer(bytes_data, np.uint8), cv2.IMREAD_COLOR)
+
+            
+                user_creation(user_name, cv2_img, count)
+                
+                
+                count += 1
+        
+        user_mean_embedding = create_verif_embedding(True,user_name,modelPath=MODELPATH)
+        user_embedding = (pickle.dumps(user_mean_embedding))
+        insert_user(mycol, user_name, user_embedding)
+        
     
-   
-    st.success("User " + user_name+ " created")
+        st.success("User " + user_name+ " created")
+
+with tabDatabase:
+    st.title('DATABASE')
+
+    see_users = st.button("See all users")
+
+    find_user = st.text_input(':sunglasses:', "Enter user name")
+
+    find_user_button = st.button("Find user")
+
+
+    if see_users:
+        all_users = get_all_usernames(mycol)
+        for user in all_users:
+            st.write("Username : " , user)
+
+
+    if find_user:
+        all_users = get_all_usernames(mycol)
+        if find_user in all_users:
+            st.success("User : %s found "%find_user)
+        else:
+            st.error("User : %s not found "%find_user)
+
+

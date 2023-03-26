@@ -21,10 +21,13 @@ from pymongo import MongoClient, errors
 
 if torch.cuda.is_available():
     DEVICE = 'cuda'
-# else :
-#      DEVICE = 'cpu'
-MODELPATH = "trained_model.pth"
-MODEL2 = "trained_model2.pth"
+else :
+     DEVICE = 'cpu'
+
+MODELPATH = "trained_model2.pth"
+MODEL2 = "trained_model.pth"
+
+##comment code below to run on cpu  
 
 class SiameseNet(nn.Module):
 

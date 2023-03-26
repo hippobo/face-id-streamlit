@@ -16,14 +16,14 @@ docker compose down
 
 ## User creation
 
-![screenshot1](screenshots/user_creation.png)
+![screenshot1](screenshots/user_creation.jpg)
 
 
 ## Access 
 
-![screenshot2](screenshots/access1.png)
+![screenshot2](screenshots/access1.jpg)
 
-![screenshot3](screenshots/access2.png)
+![screenshot3](screenshots/access2.jpg)
 
 ## Basic Database
 

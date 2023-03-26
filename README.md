@@ -33,6 +33,9 @@ docker compose down
 
 ![screenshot6](screenshots/db3.png)
 
+![screenshot7](screenshots/user_deletion.png)
+
+
 
 
 

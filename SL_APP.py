@@ -1,7 +1,6 @@
 import streamlit as st 
 import PIL.Image
 
-from bson.binary import Binary
 
 import glob
 import torchvision.transforms as transforms
@@ -17,7 +16,7 @@ import shutil
 import time
 import numpy as np
 
-from pymongo import MongoClient, errors
+from pymongo import MongoClient
 
 if torch.cuda.is_available():
     DEVICE = 'cuda'
@@ -27,10 +26,13 @@ else :
 MODELPATH = "trained_model2.pth"
 MODEL2 = "trained_model.pth"
 
-##comment code below to run on cpu  
+
+
 
 class SiameseNet(nn.Module):
 
+    '''Siamese Network Architecture
+    ''' 
 
     def __init__(self):
         super(SiameseNet,self).__init__()
@@ -83,6 +85,7 @@ class SiameseNet(nn.Module):
 
 
 def preprocess(frame):
+    '''Preprocess the frame before passing it to the model'''
     face_cascade = cv2.CascadeClassifier(cv2.data.haarcascades + 'haarcascade_frontalface_default.xml')
 
     
@@ -100,6 +103,7 @@ def preprocess(frame):
     
 @st.cache_resource
 def load_model(modelPath):
+    '''Load the model from the path'''
     model = SiameseNet().to(DEVICE)
     model.load_state_dict(torch.load(modelPath))
     model.eval()
@@ -108,7 +112,7 @@ def load_model(modelPath):
 
 
 def create_verif_embedding(userCreation,userID = None,frame = None,modelPath=MODELPATH):
-        
+        '''Create the embedding for the user'''
         images_list = []
         if userCreation:
             
@@ -197,7 +201,7 @@ def create_verif_embedding(userCreation,userID = None,frame = None,modelPath=MOD
 
 
 def user_creation(userID,frame, count):
-            
+            '''Create the user folder and save the images'''
           
             face_cascade = cv2.CascadeClassifier(cv2.data.haarcascades + 'haarcascade_frontalface_default.xml')
             
@@ -228,7 +232,7 @@ def user_creation(userID,frame, count):
            
             
 def verify_no_username(embedding, collection, threshold_value):
-    # Specify thresholds
+        '''Verify the user with the embedding according to the threshold value'''
 
 
     # Load embeddings from file
@@ -260,6 +264,7 @@ def verify_no_username(embedding, collection, threshold_value):
 
 def verify_with_username(embedding, user_name, collection, threshold_value):
     # Specify thresholds
+        '''Verify the user with the embedding according to the threshold value and username'''
 
 
     # Load embeddings from file
@@ -422,6 +427,8 @@ with tabDatabase:
 
     find_user_button = st.button("Find user")
 
+    delete_user_button = st.button("Delete user with username")
+
 
     if see_users:
         all_users = get_all_usernames(mycol)
@@ -435,5 +442,18 @@ with tabDatabase:
             st.success("User : %s found "%find_user)
         else:
             st.error("User : %s not found "%find_user)
+
+    if delete_user_button:
+
+        all_users = get_all_usernames(mycol)
+        if find_user in all_users:
+            st.success("User : %s found "%find_user)
+            delete_user(mycol, find_user)
+            st.success("User : %s deleted "%find_user)
+        else:
+            st.error("User : %s not found "%find_user)
+
+        
+
 
 

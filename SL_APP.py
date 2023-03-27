@@ -23,8 +23,8 @@ if torch.cuda.is_available():
 else :
      DEVICE = 'cpu'
 
-MODELPATH = "trained_model2.pth"
-MODEL2 = "trained_model.pth"
+MODELPATH = "trained_model.pth"
+MODEL2 = "trained_model2.pth"
 
 
 
